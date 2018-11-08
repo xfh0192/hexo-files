@@ -1,3 +1,10 @@
+---
+title: 关于事件循环、task
+date: 2018-10-17 22:20:13
+tags: 
+- js
+---
+
 # 关于事件循环、task
 
 ## 事件循环
@@ -124,23 +131,74 @@ setTimeout
 
 ### 关于microtask的行为
 
-* microtask 会令某段代码成为异步任务，而且该任务会在下一个task执行前执行。
-* 在回调函数执行后，只要没有其他js代码执行中（可理解为栈中没有执行环境），而且每个macrotask执行完毕，microtask的队列就会执行
-* 在执行microtask的过程中，如果又添加了新的microtask，该microtask将会添加到当前microtask queue的最后并且会执行
+1. microtask 会令某段代码成为异步任务，而且该任务会在下一个task（即macrotask）执行前执行。
+2. 满足任一条件时，microtask的队列就会执行：
+	* 在回调函数（注意是回调函数不是task，只要是挂载在事件上的回调函数就可以）执行后，只要没有主线程中没有执行中的js代码（可理解为栈中没有执行环境）
+	* 每当有一个macrotask执行完毕
+3. 在执行microtask的过程中，如果又添加了新的microtask，该microtask将会添加到当前microtask queue的最后并且会执行
 
 > promise也是遵循这个规则的。
 
 ### 结论
 
 1. task（macrotask）的执行是有顺序的，而且浏览器有可能会在两个任务执行之间进行渲染
-2. microtask的执行也是有顺序的。只要同时满足就会执行：
-	* 在每个回调函数执行后，只要没有其他js代码执行中（可理解为栈中没有执行环境）
+2. microtask的执行也是有顺序的。只要满足任一条件就会执行microtask队列：
+	* 在每个回调函数（注意是回调函数不是task，只要是挂载在事件上的回调函数就可以）执行后，只要没有其他js代码执行中（可理解为栈中没有执行环境）
 	* 在每个macrotask结束时
 
 > refer2 中，有更复杂的例子，可以学习
 
+---
+
+20181108分享后：
+
+1. 重新分析示例，结论表述调整
+2. 补充以下例子：
+
+```
+// 添加三个 Task
+// Task 1
+setTimeout(function() {
+  console.log(4);
+}, 0);
+
+// Task 2
+setTimeout(function() {
+  console.log(6);
+  // 添加 microTask
+  promise.then(function() {
+    console.log(8);
+  });
+}, 0);
+
+// Task 3
+setTimeout(function() {
+  console.log(7);
+}, 0);
+
+var promise = new Promise(function executor(resolve) {
+  console.log(1);
+  for (var i = 0; i < 10000; i++) {
+    i == 9999 && resolve();
+  }
+  console.log(2);
+}).then(function() {
+  console.log(5);
+});
+
+console.log(3);
+```
+
+> 执行结果：1 2 3 5 4 6 8 7
+
+至此，算是比较完整理解了event loop和task了。
+
+---
+
+todo：总结node中的event loop和相关api
 
 refer：
 
 1. [JavaScript 运行机制详解：再谈Event Loop](http://www.ruanyifeng.com/blog/2014/10/event-loop.html)
 2. [Tasks, microtasks, queues and schedules](https://jakearchibald.com/2015/tasks-microtasks-queues-and-schedules/)
+3. https://juejin.im/post/5baf37835188255c6c624d38
